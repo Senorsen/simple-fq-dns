@@ -135,7 +135,12 @@ var on_req = function(drequest, response) {
     if (whiteflag || !blackflag) {
         request(config.vps_addr + name, function(error, req_response, body) {
             counter++;
-            var data = JSON.parse(body);
+            try {
+                var data = JSON.parse(body);
+            } catch (e) {
+                logger.log('error', 'json parse error, ', e);
+                return;
+            }
             if (error || data.err) {
                 logger.log('warn', `${name}: req2 error ${data.err} ${data.msg}`);
                 if (ans1) {
