@@ -38,7 +38,7 @@ app.get('/', function(req, res) {
     dnsreq.on('message', function (err, answer) {
         logger.log('info', 'name: ' + name + ', query reached.');
         res.json({
-            err: err,
+            err: err ? 1 : 0,
             msg: err ? 'error' : 'success',
             obj: answer.answer
         });
