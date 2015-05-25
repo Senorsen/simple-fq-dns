@@ -73,7 +73,7 @@ var on_req = function(drequest, response) {
     }
     if (blackflag)
         logger.log('info', 'in blacklist: ' + name);
-    if (whitelist)
+    if (whiteflag)
         logger.log('info', 'in whitelist: ' + name);
     var req1 = dns.Request({
         question: drequest.question[0],
@@ -132,7 +132,7 @@ var on_req = function(drequest, response) {
             }
         }
     });
-    if (whitelist || !blackflag) {
+    if (whiteflag || !blackflag) {
         request(config.vps_addr + name, function(error, req_response, body) {
             counter++;
             var data = JSON.parse(body);
