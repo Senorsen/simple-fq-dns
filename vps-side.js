@@ -43,6 +43,7 @@ app.get('/', function(req, res) {
             obj: answer.answer
         });
     });
+    dnsreq.send();
 });
 
 app.listen(config.vps_port);
