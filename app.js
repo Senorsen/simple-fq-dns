@@ -135,7 +135,7 @@ var on_req = function(drequest, response) {
                 time: Date.now()
             };
         }
-        if (is_cn || counter < 2) return;
+        if (is_cn && ans1 || counter < 2) return;
         logger.log('info', `${name}: use ans2`);
         response.answer = ans2;
         cache_zone[name] = {
