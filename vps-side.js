@@ -26,7 +26,7 @@ app.get('/', function(req, res) {
     var dnsreq = dns.Request({
         question: question,
         server: { address: '8.8.8.8', port: 53, type: 'tcp' },
-        timeout: 1000
+        timeout: 2000
     });
     dnsreq.on('timeout', function () {
         logger.log('warn', 'name: ' + name + ' lookup timeout');
