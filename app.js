@@ -64,7 +64,6 @@ var on_req = function(request, response) {
         if ((is_zju || is_cn) 
                     || (!some_ip && (counter == 2))) {
             logger.log('info', `${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
-            is_sent = true;
             response.answer = ans1;
             cache_zone[name] = {
                 type: 'ans1',
@@ -72,6 +71,7 @@ var on_req = function(request, response) {
                 time: Date.now()
             };
             if (is_sent) return;
+            is_sent = true;
             response.send();
         }
     });
@@ -113,7 +113,6 @@ var on_req = function(request, response) {
         }
         if (is_cn || counter < 2) return;
         logger.log('info', `${name}: use ans2`);
-        is_sent = true;
         response.answer = ans2;
         cache_zone[name] = {
             type: 'ans2',
@@ -121,6 +120,7 @@ var on_req = function(request, response) {
             time: Date.now()
         }; 
         if (is_sent) return;
+        is_sent = true;
         response.send();
     });
     req2.on('timeout', function() {
