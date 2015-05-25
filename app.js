@@ -132,7 +132,7 @@ var on_req = function(drequest, response) {
             }
         }
     });
-    if (whiteflag || !blackflag) {
+    if ((whiteflag || !blackflag) && !is_cache) {
         request(config.vps_addr + name, function(error, req_response, body) {
             counter++;
             try {
