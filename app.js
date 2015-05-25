@@ -20,6 +20,21 @@ server_udp.serve(config.port, config.listen);
 server_tcp.serve(config.port, config.listen);
 logger.log('info', `simple-fq-dns started at ${config.listen}:${config.port}`);
 
+var fs = require('fs');
+var whitelist = fs.readFileSync('white-lists.txt').toString();
+whitelist = whitelist.split('\n');
+for (var i in whitelist) {
+    if (whitelist[i].trim() == '') delete whitelist[i];
+    else whitelist[i] = whitelist[i].trim();
+}
+var blacklist = fs.readFileSync('black-lists.txt').toString();
+blacklist = blacklist.split('\n');
+for (var i in blacklist) {
+    if (blacklist[i].trim() == '') delete blacklist[i];
+    else blacklist[i] = blacklist[i].trim();
+}
+
+
 var on_req = function(drequest, response) {
     var is_cache, cache;
     var name = drequest.question[0].name;
@@ -36,6 +51,19 @@ var on_req = function(drequest, response) {
         response.answer = cache.answer;
         response.send();
         is_sent = true;
+    }
+    var whiteflag = false, blackflag = false;
+    for (var i in whitelist) {
+        if (name.indexOf(whitelist[i]) != -1) {
+            whiteflag = true;
+            break;
+        }
+    }
+    for (var i in blacklist) {
+        if (name.indexOf(blacklist[i]) != -1) {
+            blackflag = true;
+            break;
+        }
     }
     var req1 = dns.Request({
         question: drequest.question[0],
@@ -57,7 +85,7 @@ var on_req = function(drequest, response) {
             is_zju = judge_zju_addr(some_ip);
             is_cn = judge_cn_addr(some_ip);
         }
-        if ((is_zju || is_cn) 
+        if (blackflag || (is_zju || is_cn) 
                     || (!some_ip && (counter >= 2))) {
             logger.log('info', `${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
             response.answer = ans1;
@@ -94,63 +122,64 @@ var on_req = function(drequest, response) {
             }
         }
     });
-    console.log(config.vps_addr + name);
-    request(config.vps_addr + name, function(error, req_response, body) {
-        counter++;
-        var data = JSON.parse(body);
-        if (error || data.err) {
-            logger.log('warn', `${name}: req2 error ${data.err} ${data.msg}`);
-            if (ans1) {
-                logger.log('warn', 'fallback to ans1');
-                response.answer = ans1;
+    if (whitelist || !blackflag) {
+        request(config.vps_addr + name, function(error, req_response, body) {
+            counter++;
+            var data = JSON.parse(body);
+            if (error || data.err) {
+                logger.log('warn', `${name}: req2 error ${data.err} ${data.msg}`);
+                if (ans1) {
+                    logger.log('warn', 'fallback to ans1');
+                    response.answer = ans1;
+                    cache_zone[name] = {
+                        type: 'ans1',
+                        answer: ans1,
+                        time: Date.now()
+                    };
+                    try {
+                        response.send();
+                    } catch (e) {
+                        logger.log('error', 'req2 response.send() error');
+                    }
+                }
+                return;
+            }
+            ans2 = data.obj;
+            var some_ip;
+            ans2.forEach(function(v) {
+                if (!some_ip && v.type == 1 && typeof v.address == 'string') {
+                    some_ip = v.address;
+                }
+            });
+            var is_zju, is_cn;
+            if (some_ip) {
+                is_zju = judge_zju_addr(some_ip);
+                is_cn = judge_cn_addr(some_ip);
+            }
+            if (!ans1) {
                 cache_zone[name] = {
-                    type: 'ans1',
-                    answer: ans1,
+                    type: 'ans2',
+                    answer: ans2,
                     time: Date.now()
                 };
-                try {
-                    response.send();
-                } catch (e) {
-                    logger.log('error', 'req2 response.send() error');
-                }
             }
-            return;
-        }
-        ans2 = data.obj;
-        var some_ip;
-        ans2.forEach(function(v) {
-            if (!some_ip && v.type == 1 && typeof v.address == 'string') {
-                some_ip = v.address;
-            }
-        });
-        var is_zju, is_cn;
-        if (some_ip) {
-            is_zju = judge_zju_addr(some_ip);
-            is_cn = judge_cn_addr(some_ip);
-        }
-        if (!ans1) {
+            if (is_cn && ans1 || counter < 2) return;
+            logger.log('info', `${name}: use ans2`);
+            response.answer = ans2;
             cache_zone[name] = {
                 type: 'ans2',
                 answer: ans2,
                 time: Date.now()
-            };
-        }
-        if (is_cn && ans1 || counter < 2) return;
-        logger.log('info', `${name}: use ans2`);
-        response.answer = ans2;
-        cache_zone[name] = {
-            type: 'ans2',
-            answer: ans2,
-            time: Date.now()
-        }; 
-        if (is_sent) return;
-        is_sent = true;
-        //try {
-            response.send();
-        //} catch (e) {
-        //    logger.log('error', 'error on req2 response.send()');
-        //}
-    });
+            }; 
+            if (is_sent) return;
+            is_sent = true;
+            try {
+                response.send();
+            } catch (e) {
+                logger.log('error', 'error on req2 response.send()');
+            }
+        });
+    }
     try {
         req1.send();
     } catch (e) {
