@@ -7,6 +7,7 @@ var logger = require('./setlogger.js');
 var dns = require('native-dns');
 var util = require('util');
 var config = require('./config.json');
+var hosts = require('./hosts.json');
 var judge_addr = require('./judge-addr.js');
 var request = require('request');
 judge_zju_addr = judge_addr.judge_zju_addr;
@@ -40,10 +41,21 @@ for (var i in blacklist_p) {
 console.log(blacklist);
 logger.log('info', `read ${blacklist.length} blacklists`);
 
-
 var on_req = function(drequest, response) {
     var is_cache, cache;
     var name = drequest.question[0].name;
+    if (typeof hosts[name] == 'string') {
+        logger.log('info', `host ${name} in hosts: ${hosts[name]}`);
+        response.answer = [
+            dns.A({
+                name: name,
+                address: hosts[name],
+                ttl: 600
+            })
+        ];
+        response.send();
+        return;
+    }
     if (typeof cache_zone[name] != 'undefined') {
         cache = cache_zone[name];
         if (Date.now() - cache.time <= 360 * 1000) {
@@ -84,6 +96,10 @@ var on_req = function(drequest, response) {
     req1.on('message', function (err, answer) {
         counter++;
         ans1 = answer.answer;
+        if (typeof ans1 != 'object') {
+            logger.log('error', 'Error: ans1 is not an object');
+            return;
+        }
         var some_ip;
         ans1.forEach(function(v) {
             if (!some_ip && v.type == 1 && typeof v.address == 'string') {
