@@ -25,7 +25,7 @@ app.get('/', function(req, res) {
     });
     var dnsreq = dns.Request({
         question: question,
-        server: { address: '8.8.8.8', port: 53, type: 'tcp' },
+        server: { address: '8.8.8.8', port: 53, type: 'udp' },
         timeout: 2000
     });
     dnsreq.on('timeout', function () {
