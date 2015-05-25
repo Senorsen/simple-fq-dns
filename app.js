@@ -57,6 +57,7 @@ var on_req = function(drequest, response) {
         response.answer = cache.answer;
         response.send();
         is_sent = true;
+        return;
     }
     var whiteflag = false, blackflag = false;
     for (var i in whitelist) {
@@ -132,7 +133,7 @@ var on_req = function(drequest, response) {
             }
         }
     });
-    if ((whiteflag || !blackflag) && !is_cache) {
+    if (whiteflag || !blackflag) {
         request(config.vps_addr + name, function(error, req_response, body) {
             counter++;
             try {
