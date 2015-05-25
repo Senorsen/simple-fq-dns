@@ -133,6 +133,9 @@ var on_req = function(drequest, response) {
             }
         }
     });
+    req1.on('end', function() {
+        delete req1;
+    });
     if (whiteflag || !blackflag) {
         request(config.vps_addr + name, function(error, req_response, body) {
             counter++;
