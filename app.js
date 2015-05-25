@@ -65,6 +65,10 @@ var on_req = function(drequest, response) {
             break;
         }
     }
+    if (blackflag)
+        logger.log('info', 'in blacklist: ' + name);
+    if (whitelist)
+        logger.log('info', 'in whitelist: ' + name);
     var req1 = dns.Request({
         question: drequest.question[0],
         server: { address: '10.10.0.21', port: 53, type: 'tcp' },
