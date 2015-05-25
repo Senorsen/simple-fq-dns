@@ -1,0 +1,24 @@
+{
+  "name": "simple-fq-dns",
+  "version": "0.0.1",
+  "description": "A simple DNS server to fq in LAN",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.12.4",
+    "geoip-lite": "^1.1.6",
+    "native-dns": "^0.7.0",
+    "netmask": "^1.0.5",
+    "qs": "^3.0.0",
+    "winston": "^1.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.zjuqsc.com:apps/simple-fq-dns.git"
+  },
+  "author": "Senorsen <sen@senorsen.com>",
+  "license": "MIT"
+}

@@ -1,2 +1,9 @@
 
 *.swp
+
+logs/*
+!logs/.empty
+
+node_modules/
+
+
