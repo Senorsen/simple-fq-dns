@@ -50,7 +50,7 @@ var on_req = function(drequest, response) {
             is_cache = true;
         }
     }
-    logger.log('info', `client req: ${name}` + (cache ? (is_cache ? ' - cache hit' : ' - cache expired') : ''));
+    logger.log('info', `client ${drequest.address.address} req: ${name}` + (cache ? (is_cache ? ' - cache hit' : ' - cache expired') : ''));
     var is_sent, counter = 0;
     var ans1, ans2;
     if (is_cache) {
