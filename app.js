@@ -62,7 +62,7 @@ var on_req = function(request, response) {
             is_cn = judge_cn_addr(some_ip);
         }
         if ((is_zju || is_cn) 
-                    || (!some_ip && (counter == 2))) {
+                    || (!some_ip && (counter >= 2))) {
             logger.log('info', `${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
             response.answer = ans1;
             cache_zone[name] = {
@@ -73,6 +73,11 @@ var on_req = function(request, response) {
             if (is_sent) return;
             is_sent = true;
             response.send();
+            try {
+                response.send();
+            } catch (e) {
+                logger.log('error', 'error on req1 response.send()');
+            }
         }
     });
     req1.on('timeout', function() {
@@ -86,7 +91,11 @@ var on_req = function(request, response) {
                 answer: ans2,
                 time: Date.now()
             };
-            response.send();
+            try {
+                response.send();
+            } catch (e) {
+                logger.log('error', 'error on req1 response.send()');
+            }
         }
     });
     req2.on('message', function (err, answer) {
@@ -121,7 +130,11 @@ var on_req = function(request, response) {
         }; 
         if (is_sent) return;
         is_sent = true;
-        response.send();
+        try {
+            response.send();
+        } catch (e) {
+            logger.log('error', 'error on req2 response.send()');
+        }
     });
     req2.on('timeout', function() {
         counter++;
@@ -134,11 +147,25 @@ var on_req = function(request, response) {
                 answer: ans1,
                 time: Date.now()
             };
-            response.send();
+            try {
+                response.send();
+            } catch (e) {
+                logger.log('error', 'error on req2 response.send()');
+            }
         }
     });
-    req1.send();
-    req2.send();
+    try {
+        req1.send();
+    } catch (e) {
+        counter++;
+        logger.log('error', 'error on req1.send()');
+    }
+    try {
+        req2.send();
+    } catch (e) {
+        counter++;
+        logger.log('error', 'error on req2.send()');
+    }
 };
 server_udp.on('request', on_req);
 server_tcp.on('request', on_req);
