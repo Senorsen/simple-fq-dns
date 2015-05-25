@@ -8,6 +8,7 @@ var dns = require('native-dns');
 var util = require('util');
 var config = require('./config.json');
 var judge_addr = require('./judge-addr.js');
+var request = require('request');
 judge_zju_addr = judge_addr.judge_zju_addr;
 judge_cn_addr = judge_addr.judge_cn_addr;
 
@@ -19,9 +20,9 @@ server_udp.serve(config.port, config.listen);
 server_tcp.serve(config.port, config.listen);
 logger.log('info', `simple-fq-dns started at ${config.listen}:${config.port}`);
 
-var on_req = function(request, response) {
+var on_req = function(drequest, response) {
     var is_cache, cache;
-    var name = request.question[0].name;
+    var name = drequest.question[0].name;
     if (typeof cache_zone[name] != 'undefined') {
         cache = cache_zone[name];
         if (Date.now() - cache.time < 10 * 1000) {
@@ -37,14 +38,9 @@ var on_req = function(request, response) {
         is_sent = true;
     }
     var req1 = dns.Request({
-        question: request.question[0],
+        question: drequest.question[0],
         server: { address: '10.10.0.21', port: 53, type: 'tcp' },
-        timeout: 3000
-    });
-    var req2 = dns.Request({
-        question: request.question[0],
-        server: { address: '8.8.8.8', port: 53, type: 'tcp' },
-        timeout: 3000
+        timeout: 800
     });
     req1.on('message', function (err, answer) {
         counter++;
@@ -98,14 +94,33 @@ var on_req = function(request, response) {
             }
         }
     });
-    req2.on('message', function (err, answer) {
+    console.log(config.vps_addr + name);
+    request(config.vps_addr + name, function(error, req_response, body) {
         counter++;
-        ans2 = answer.answer;
+        var data = JSON.parse(body);
+        if (error || data.err) {
+            logger.log('warn', `${name}: req2 error ${data.err} ${data.msg}`);
+            if (ans1) {
+                logger.log('warn', 'fallback to ans1');
+                response.answer = ans1;
+                cache_zone[name] = {
+                    type: 'ans1',
+                    answer: ans1,
+                    time: Date.now()
+                };
+                try {
+                    response.send();
+                } catch (e) {
+                    logger.log('error', 'req2 response.send() error');
+                }
+            }
+            return;
+        }
+        ans2 = data.obj;
         var some_ip;
         ans2.forEach(function(v) {
             if (!some_ip && v.type == 1 && typeof v.address == 'string') {
                 some_ip = v.address;
-                return;
             }
         });
         var is_zju, is_cn;
@@ -130,41 +145,17 @@ var on_req = function(request, response) {
         }; 
         if (is_sent) return;
         is_sent = true;
-        try {
+        //try {
             response.send();
-        } catch (e) {
-            logger.log('error', 'error on req2 response.send()');
-        }
-    });
-    req2.on('timeout', function() {
-        counter++;
-        if (ans1) {
-            logger.log('warn', `${name}: req2 timeout, use ans1`);
-            is_sent = true;
-            response.answer = ans1;
-            cache_zone[name] = {
-                type: 'ans1',
-                answer: ans1,
-                time: Date.now()
-            };
-            try {
-                response.send();
-            } catch (e) {
-                logger.log('error', 'error on req2 response.send()');
-            }
-        }
+        //} catch (e) {
+        //    logger.log('error', 'error on req2 response.send()');
+        //}
     });
     try {
         req1.send();
     } catch (e) {
         counter++;
         logger.log('error', 'error on req1.send()');
-    }
-    try {
-        req2.send();
-    } catch (e) {
-        counter++;
-        logger.log('error', 'error on req2.send()');
     }
 };
 server_udp.on('request', on_req);
