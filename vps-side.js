@@ -13,6 +13,12 @@ app.get('/', function(req, res) {
     var name = req.query.name;
     var ip = req.ip;
     logger.log('info', 'client ' + ip + ' query: ' + name);
+    if (typeof name == 'undefined') {
+        return res.json({
+            err: 2,
+            msg: 'parameter error'
+        });
+    }
     var question = dns.Question({
         name: name,
         type: 'A'
