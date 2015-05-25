@@ -46,7 +46,7 @@ var on_req = function(drequest, response) {
     var name = drequest.question[0].name;
     if (typeof cache_zone[name] != 'undefined') {
         cache = cache_zone[name];
-        if (Date.now() - cache.time < 10 * 1000) {
+        if (Date.now() - cache.time <= 360 * 1000) {
             is_cache = true;
         }
     }
