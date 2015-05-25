@@ -43,6 +43,9 @@ app.get('/', function(req, res) {
             obj: answer.answer
         });
     });
+    dnsreq.on('end', function() {
+        delete dnsreq;
+    });
     try {
         dnsreq.send();
     } catch (e) {
