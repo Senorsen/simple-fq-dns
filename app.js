@@ -142,7 +142,7 @@ var on_req = function(drequest, response) {
             try {
                 var data = JSON.parse(body);
             } catch (e) {
-                logger.log('error', 'json parse error');
+                logger.log('error', 'json parse error: ' + body);
                 return;
             }
             if (error || data.err) {
