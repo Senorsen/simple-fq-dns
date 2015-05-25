@@ -21,18 +21,24 @@ server_tcp.serve(config.port, config.listen);
 logger.log('info', `simple-fq-dns started at ${config.listen}:${config.port}`);
 
 var fs = require('fs');
-var whitelist = fs.readFileSync('white-lists.txt').toString();
-whitelist = whitelist.split('\n');
-for (var i in whitelist) {
-    if (whitelist[i].trim() == '') delete whitelist[i];
-    else whitelist[i] = whitelist[i].trim();
+var whitelist_str = fs.readFileSync('white-lists.txt').toString();
+var whitelist_p = whitelist_str.split('\n');
+var whitelist = [];
+for (var i in whitelist_p) {
+    if (whitelist_p[i].trim() != '')
+        whitelist.push(whitelist_p[i].trim());
 }
-var blacklist = fs.readFileSync('black-lists.txt').toString();
-blacklist = blacklist.split('\n');
-for (var i in blacklist) {
-    if (blacklist[i].trim() == '') delete blacklist[i];
-    else blacklist[i] = blacklist[i].trim();
+console.log(whitelist);
+logger.log('info', `read ${whitelist.length} whitelists`);
+var blacklist_str = fs.readFileSync('black-lists.txt').toString();
+var blacklist_p = blacklist_str.split('\n');
+var blacklist = [];
+for (var i in blacklist_p) {
+    if (blacklist_p[i].trim() != '')
+        blacklist.push(blacklist_p[i].trim());
 }
+console.log(blacklist);
+logger.log('info', `read ${blacklist.length} blacklists`);
 
 
 var on_req = function(drequest, response) {
