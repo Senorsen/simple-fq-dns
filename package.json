@@ -9,7 +9,6 @@
     "native-dns": "^0.7.0",
     "netmask": "^1.0.5",
     "qs": "^3.0.0",
-    "request": "^2.55.0",
     "winston": "^1.0.0"
   },
   "devDependencies": {},

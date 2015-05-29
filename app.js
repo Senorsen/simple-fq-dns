@@ -9,7 +9,6 @@ var util = require('util');
 var config = require('./config.json');
 var hosts = require('./hosts.json');
 var judge_addr = require('./judge-addr.js');
-var request = require('request');
 judge_zju_addr = judge_addr.judge_zju_addr;
 judge_cn_addr = judge_addr.judge_cn_addr;
 
@@ -89,9 +88,9 @@ var on_req = function(drequest, response) {
     if (whiteflag)
         logger.log('info', 'in whitelist: ' + name);
     var req1 = dns.Request({
-        question: drequest.question[0],
+        question: request.question[0],
         server: { address: '10.10.0.21', port: 53, type: 'tcp' },
-        timeout: 800
+        timeout: 3000
     });
     req1.on('message', function (err, answer) {
         counter++;
@@ -113,23 +112,23 @@ var on_req = function(drequest, response) {
             is_cn = judge_cn_addr(some_ip);
         }
         if (blackflag || (is_zju || is_cn) 
-                    || (!some_ip && (counter >= 2))) {
-            logger.log('info', `${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
-            response.answer = ans1;
-            cache_zone[name] = {
-                type: 'ans1',
-                answer: ans1,
-                time: Date.now()
-            };
-            if (is_sent) return;
-            is_sent = true;
-            response.send();
-            try {
+            || (!some_ip && (counter >= 2))) {
+                logger.log('info', `${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
+                response.answer = ans1;
+                cache_zone[name] = {
+                    type: 'ans1',
+                    answer: ans1,
+                    time: Date.now()
+                };
+                if (is_sent) return;
+                is_sent = true;
                 response.send();
-            } catch (e) {
-                logger.log('error', 'error on req1 response.send()');
+                try {
+                    response.send();
+                } catch (e) {
+                    logger.log('error', 'error on req1 response.send()');
+                }
             }
-        }
     });
     req1.on('timeout', function() {
         counter++;
@@ -139,8 +138,8 @@ var on_req = function(drequest, response) {
             response.answer = ans2;
             cache_zone[name] = {
                 type: 'ans2',
-                answer: ans2,
-                time: Date.now()
+        answer: ans2,
+        time: Date.now()
             };
             try {
                 response.send();
@@ -153,37 +152,19 @@ var on_req = function(drequest, response) {
         delete req1;
     });
     if (whiteflag || !blackflag) {
-        request(config.vps_addr + name, function(error, req_response, body) {
+        var req2 = dns.Request({
+            question: request.question[0],
+            server: { address: '8.8.8.8', port: 53, type: 'tcp' },
+            timeout: 3000
+        });
+        req2.on('message', function (err, answer) {
             counter++;
-            try {
-                var data = JSON.parse(body);
-            } catch (e) {
-                logger.log('error', 'json parse error: ' + body);
-                return;
-            }
-            if (error || data.err) {
-                logger.log('warn', `${name}: req2 error ${data.err} ${data.msg}`);
-                if (ans1) {
-                    logger.log('warn', 'fallback to ans1');
-                    response.answer = ans1;
-                    cache_zone[name] = {
-                        type: 'ans1',
-                        answer: ans1,
-                        time: Date.now()
-                    };
-                    try {
-                        response.send();
-                    } catch (e) {
-                        logger.log('error', 'req2 response.send() error');
-                    }
-                }
-                return;
-            }
-            ans2 = data.obj;
+            ans2 = answer.answer;
             var some_ip;
             ans2.forEach(function(v) {
                 if (!some_ip && v.type == 1 && typeof v.address == 'string') {
                     some_ip = v.address;
+                    return;
                 }
             });
             var is_zju, is_cn;
@@ -194,11 +175,13 @@ var on_req = function(drequest, response) {
             if (!ans1) {
                 cache_zone[name] = {
                     type: 'ans2',
-                    answer: ans2,
-                    time: Date.now()
-                };
+            answer: ans2,
+            time: Date.now()
+                }; 
+                if (is_sent) return;
+                is_sent = true;
             }
-            if (is_cn && ans1 || counter < 2) return;
+            if (is_cn || counter < 2) return;
             logger.log('info', `${name}: use ans2`);
             response.answer = ans2;
             cache_zone[name] = {
@@ -214,6 +197,30 @@ var on_req = function(drequest, response) {
                 logger.log('error', 'error on req2 response.send()');
             }
         });
+        req2.on('timeout', function() {
+            counter++;
+            if (ans1) {
+                logger.log('warn', `${name}: req2 timeout, use ans1`);
+                is_sent = true;
+                response.answer = ans1;
+                cache_zone[name] = {
+                    type: 'ans1',
+            answer: ans1,
+            time: Date.now()
+                };
+                try {
+                    response.send();
+                } catch (e) {
+                    logger.log('error', 'error on req2 response.send()');
+                }
+            }
+        });
+        try {
+            req2.send();
+        } catch (e) {
+            counter++;
+            logger.log('error', 'error on req2.send()');
+        }
     }
     try {
         req1.send();
