@@ -1,24 +1,33 @@
 {
   "name": "simple-fq-dns",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A simple DNS server to fq in LAN",
-  "main": "app.js",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index",
+    "build": "sh ./scripts/build.sh"
+  },
   "dependencies": {
-    "express": "^4.12.4",
+    "babel-core": "^6.5.2",
+    "babel-polyfill": "^6.5.0",
+    "express": "^4.13.4",
     "geoip-lite": "^1.1.6",
     "native-dns": "^0.7.0",
     "netmask": "^1.0.5",
-    "qs": "^3.0.0",
-    "winston": "^1.0.0"
+    "qs": "^6.1.0",
+    "winston": "^2.1.1"
   },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "devDependencies": {
+    "babel-cli": "^6.5.1",
+    "babel-plugin-syntax-async-functions": "^6.5.0",
+    "babel-plugin-transform-regenerator": "^6.5.2",
+    "babel-preset-es2015": "^6.5.0",
+    "babel-preset-stage-0": "^6.5.0"
   },
   "repository": {
     "type": "git",
     "url": "git@git.zjuqsc.com:apps/simple-fq-dns.git"
   },
-  "author": "Senorsen <sen@senorsen.com>",
+  "author": "Senorsen <senorsen.zhang@gmail.com>",
   "license": "MIT"
 }

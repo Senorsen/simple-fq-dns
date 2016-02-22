@@ -1,18 +1,18 @@
-// Copyright 2015 Senorsen <sen@senorsen.com>
+// Copyright 2015, 2016 Senorsen <senorsen.zhang@gmail.com>
 // 
 
-var geoip = require('geoip-lite');
-var Netmask = require('netmask').Netmask;
-var logger = global.logger;
-var netmasks_config = require('./internal-netmasks.json');
+let geoip = require('geoip-lite');
+let Netmask = require('netmask').Netmask;
+let logger = require('./logger')('judge-addr');
+let netmasks_config = require('../internal-netmasks.json');
 
-var netmasks = [];
+let netmasks = [];
 
 netmasks_config.forEach(function(v) {
     netmasks.push(new Netmask(v));
 });
 
-logger.log('info', `loaded ${netmasks.length} netmasks`);
+logger.info('info', `loaded ${netmasks.length} netmasks`);
 
 module.exports = {
     judge_zju_addr: function (addr) {
@@ -23,7 +23,7 @@ module.exports = {
         return false;
     },
     judge_cn_addr: function (addr) {
-        var geo = geoip.lookup(addr);
+        let geo = geoip.lookup(addr);
         if (geo && geo.country == 'CN')
             return true;
         else
