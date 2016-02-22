@@ -22,7 +22,8 @@ server_tcp.serve(config.port, config.listen);
 logger.log('info', `simple-fq-dns started at ${config.listen}:${config.port}`);
 
 let fs = require('fs');
-let whitelist_str = fs.readFileSync('../white-lists.txt').toString();
+let path = require('path');
+let whitelist_str = fs.readFileSync(path.join(__dirname, '..', 'white-lists.txt')).toString();
 let whitelist_p = whitelist_str.split('\n');
 let whitelist = [];
 for (var i in whitelist_p) {
@@ -31,7 +32,7 @@ for (var i in whitelist_p) {
 }
 console.log(whitelist);
 logger.log('info', `read ${whitelist.length} whitelists`);
-let blacklist_str = fs.readFileSync('../black-lists.txt').toString();
+let blacklist_str = fs.readFileSync(path.join(__dirname, '..', 'black-lists.txt')).toString();
 let blacklist_p = blacklist_str.split('\n');
 let blacklist = [];
 for (var i in blacklist_p) {
