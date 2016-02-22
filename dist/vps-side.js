@@ -2,7 +2,7 @@
 // 
 
 var logger=require('./logger')('vps-side');
-var dns=require('native-dns');
+var dns=require('native-dns-rogerc');
 var util=require('util');
 var express=require('express');
 var config=require('../config.json');

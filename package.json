@@ -1,6 +1,6 @@
 {
   "name": "simple-fq-dns",
-  "version": "0.3.0",
+  "version": "0.3.5",
   "description": "A simple DNS server to fq in LAN",
   "main": "index.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "babel-polyfill": "^6.5.0",
     "express": "^4.13.4",
     "geoip-lite": "^1.1.6",
-    "native-dns": "^0.7.0",
+    "native-dns-rogerc": "^0.7.0",
     "netmask": "^1.0.5",
     "qs": "^6.1.0",
     "winston": "^2.1.1"

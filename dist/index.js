@@ -4,7 +4,8 @@
 //
 
 var logger=require('./logger')('index');
-var dns=require('native-dns');
+var dns=require('native-dns-rogerc');
+var dnsorg=require('dns');
 var util=require('util');
 var config=require('../config.json');
 var hosts=require('../hosts.json');
@@ -42,6 +43,8 @@ blacklist.push(blacklist_p[i].trim());}
 console.log(blacklist);
 logger.log('info','read '+blacklist.length+' blacklists');
 
+var cacheTime=config.cache;
+
 var on_req=function on_req(drequest,response){
 var is_cache=undefined,cache=undefined;
 var name=drequest.question[0].name;
@@ -57,9 +60,9 @@ ttl:600})];
 response.send();
 return;}
 
-if(typeof cache_zone[name]!='undefined'){
+if(cacheTime&&typeof cache_zone[name]!='undefined'){
 cache=cache_zone[name];
-if(Date.now()-cache.time<=360*1000){
+if(Date.now()-cache.time<=cacheTime*1000){
 is_cache=true;}}
 
 
@@ -86,17 +89,27 @@ break;}}
 
 
 if(blackflag)
-logger.log('info','in blacklist: '+name);
+logger.info('in blacklist: '+name);
 if(whiteflag)
-logger.log('info','in whitelist: '+name);
-var req1=dns.Request({
-question:request.question[0],
-server:{address:'10.10.0.21',port:53,type:'tcp'},
-timeout:3000});
+logger.info('in whitelist: '+name);
 
-req1.on('message',function(err,answer){
+var req1=undefined,req2=undefined;
+logger.info('question',drequest.question[0]);
+req1=dns.Request({
+question:drequest.question[0],
+server:{address:'10.10.0.21',port:53,type:'tcp'},
+timeout:1200});
+
+
+
+req1.once('error',function(e){
+logger.error('req1 on error',e);});
+
+
+req1.once('message',function(err,answer){
 counter++;
 ans1=answer.answer;
+logger.info('answer1',ans1);
 if((typeof ans1==='undefined'?'undefined':_typeof(ans1))!='object'){
 logger.log('error','Error: ans1 is not an object');
 return;}
@@ -110,11 +123,16 @@ some_ip=v.address;}});
 var is_zju=undefined,is_cn=undefined;
 if(some_ip){
 is_zju=judge_zju_addr(some_ip);
-is_cn=judge_cn_addr(some_ip);}
+is_cn=judge_cn_addr(some_ip);}else 
+{
+response.answer=ans1;
+is_sent=true;
+if(req2)req2.cancel();
+response.send();}
 
 if(blackflag||is_zju||is_cn||
 !some_ip&&counter>=2){
-logger.log('info',name+': is_zju = '+is_zju+', is_cn = '+is_cn+', some_ip = '+some_ip+', counter = '+counter);
+logger.info('req1 '+name+': is_zju = '+is_zju+', is_cn = '+is_cn+', some_ip = '+some_ip+', counter = '+counter);
 response.answer=ans1;
 cache_zone[name]={
 type:'ans1',
@@ -123,18 +141,19 @@ time:Date.now()};
 
 if(is_sent)return;
 is_sent=true;
+if(req2)req2.cancel();
 response.send();
 try{
 response.send();}
 catch(e){
-logger.log('error','error on req1 response.send()');}}});
+logger.error('error on req1 response.send()');}}});
 
 
 
-req1.on('timeout',function(){
+req1.once('timeout',function(){
 counter++;
 if(ans2){
-logger.log('warn',name+': req1 timeout, use ans2');
+logger.warn(name+': req1 timeout, use ans2');
 is_sent=true;
 response.answer=ans2;
 cache_zone[name]={
@@ -145,29 +164,33 @@ time:Date.now()};
 try{
 response.send();}
 catch(e){
-logger.log('error','error on req1 response.send()');}}});
+logger.error('error on req1 response.send()');}}});
 
 
 
 if(whiteflag||!blackflag){
-var req2=dns.Request({
-question:request.question[0],
-server:{address:'8.8.8.8',port:53,type:'tcp'},
-timeout:3000});
+req2=dns.Request({
+question:drequest.question[0],
+server:{address:'8.8.8.8',port:53,type:'udp'},
+timeout:1200});
 
-req2.on('message',function(err,answer){
+
+req2.once('error',function(e){
+logger.error('req2 on error',e);});
+
+
+req2.once('message',function(err,answer){
 counter++;
 ans2=answer.answer;
+logger.info('answer2',ans2);
 var some_ip=undefined;
 ans2.forEach(function(v){
 if(!some_ip&&v.type==1&&typeof v.address=='string'){
-some_ip=v.address;
-return;}});
+some_ip=v.address;}});
 
 
-var is_zju=undefined,is_cn=undefined;
+var is_cn=undefined;
 if(some_ip){
-is_zju=judge_zju_addr(some_ip);
 is_cn=judge_cn_addr(some_ip);}
 
 if(!ans1){
@@ -179,6 +202,7 @@ time:Date.now()};
 if(is_sent)return;
 is_sent=true;}
 
+logger.info('req2 '+name+': is_cn = '+is_cn+', some_ip = '+some_ip+', counter = '+counter);
 if(is_cn||counter<2)return;
 logger.log('info',name+': use ans2');
 response.answer=ans2;
@@ -189,16 +213,13 @@ time:Date.now()};
 
 if(is_sent)return;
 is_sent=true;
-try{
-response.send();}
-catch(e){
-logger.log('error','error on req2 response.send()');}});
+if(req1)req1.cancel();
+response.send();});
 
-
-req2.on('timeout',function(){
+req2.once('timeout',function(){
 counter++;
 if(ans1){
-logger.log('warn',name+': req2 timeout, use ans1');
+logger.warn(name+': req2 timeout, use ans1');
 is_sent=true;
 response.answer=ans1;
 cache_zone[name]={
@@ -209,23 +230,13 @@ time:Date.now()};
 try{
 response.send();}
 catch(e){
-logger.log('error','error on req2 response.send()');}}});
+logger.error('error on req2 response.send()');}}});
 
 
 
-try{
 req2.send();}
-catch(e){
-counter++;
-logger.log('error','error on req2.send()');}}
 
-
-try{
-req1.send();}
-catch(e){
-counter++;
-logger.log('error','error on req1.send()');}};
-
+req1.send();};
 
 server_udp.on('request',on_req);
 server_tcp.on('request',on_req);

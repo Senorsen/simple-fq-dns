@@ -4,7 +4,8 @@
 //
 
 let logger = require('./logger')('index');
-let dns = require('native-dns');
+let dns = require('native-dns-rogerc');
+let dnsorg = require('dns');
 let util = require('util');
 let config = require('../config.json');
 let hosts = require('../hosts.json');
@@ -42,6 +43,8 @@ for (var i in blacklist_p) {
 console.log(blacklist);
 logger.log('info', `read ${blacklist.length} blacklists`);
 
+let cacheTime = config.cache;
+
 let on_req = function (drequest, response) {
     let is_cache, cache;
     let name = drequest.question[0].name;
@@ -57,9 +60,9 @@ let on_req = function (drequest, response) {
         response.send();
         return;
     }
-    if (typeof cache_zone[name] != 'undefined') {
+    if (cacheTime && typeof cache_zone[name] != 'undefined') {
         cache = cache_zone[name];
-        if (Date.now() - cache.time <= 360 * 1000) {
+        if (Date.now() - cache.time <= cacheTime * 1000) {
             is_cache = true;
         }
     }
@@ -86,17 +89,27 @@ let on_req = function (drequest, response) {
         }
     }
     if (blackflag)
-        logger.log('info', 'in blacklist: ' + name);
+        logger.info('in blacklist: ' + name);
     if (whiteflag)
-        logger.log('info', 'in whitelist: ' + name);
-    let req1 = dns.Request({
-        question: request.question[0],
+        logger.info('in whitelist: ' + name);
+
+    let req1, req2;
+    logger.info('question', drequest.question[0]);
+    req1 = dns.Request({
+        question: drequest.question[0],
         server: {address: '10.10.0.21', port: 53, type: 'tcp'},
-        timeout: 3000
+        timeout: 1200
     });
-    req1.on('message', function (err, answer) {
+
+
+    req1.once('error', (e) => {
+        logger.error('req1 on error', e);
+    });
+
+    req1.once('message', function (err, answer) {
         counter++;
         ans1 = answer.answer;
+        logger.info('answer1', ans1);
         if (typeof ans1 != 'object') {
             logger.log('error', 'Error: ans1 is not an object');
             return;
@@ -111,10 +124,15 @@ let on_req = function (drequest, response) {
         if (some_ip) {
             is_zju = judge_zju_addr(some_ip);
             is_cn = judge_cn_addr(some_ip);
+        } else {
+            response.answer = ans1;
+            is_sent = true;
+            if (req2) req2.cancel();
+            response.send();
         }
         if (blackflag || (is_zju || is_cn)
             || (!some_ip && (counter >= 2))) {
-            logger.log('info', `${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
+            logger.info(`req1 ${name}: is_zju = ${is_zju}, is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
             response.answer = ans1;
             cache_zone[name] = {
                 type: 'ans1',
@@ -123,18 +141,19 @@ let on_req = function (drequest, response) {
             };
             if (is_sent) return;
             is_sent = true;
+            if (req2) req2.cancel();
             response.send();
             try {
                 response.send();
             } catch (e) {
-                logger.log('error', 'error on req1 response.send()');
+                logger.error('error on req1 response.send()');
             }
         }
     });
-    req1.on('timeout', function () {
+    req1.once('timeout', function () {
         counter++;
         if (ans2) {
-            logger.log('warn', `${name}: req1 timeout, use ans2`);
+            logger.warn(`${name}: req1 timeout, use ans2`);
             is_sent = true;
             response.answer = ans2;
             cache_zone[name] = {
@@ -145,29 +164,33 @@ let on_req = function (drequest, response) {
             try {
                 response.send();
             } catch (e) {
-                logger.log('error', 'error on req1 response.send()');
+                logger.error('error on req1 response.send()');
             }
         }
     });
     if (whiteflag || !blackflag) {
-        let req2 = dns.Request({
-            question: request.question[0],
-            server: {address: '8.8.8.8', port: 53, type: 'tcp'},
-            timeout: 3000
+        req2 = dns.Request({
+            question: drequest.question[0],
+            server: {address: '8.8.8.8', port: 53, type: 'udp'},
+            timeout: 1200
         });
-        req2.on('message', function (err, answer) {
+
+        req2.once('error', (e) => {
+            logger.error('req2 on error', e);
+        });
+
+        req2.once('message', function (err, answer) {
             counter++;
             ans2 = answer.answer;
+            logger.info('answer2', ans2);
             let some_ip;
             ans2.forEach(function (v) {
                 if (!some_ip && v.type == 1 && typeof v.address == 'string') {
                     some_ip = v.address;
-                    return;
                 }
             });
-            let is_zju, is_cn;
+            let is_cn;
             if (some_ip) {
-                is_zju = judge_zju_addr(some_ip);
                 is_cn = judge_cn_addr(some_ip);
             }
             if (!ans1) {
@@ -179,6 +202,7 @@ let on_req = function (drequest, response) {
                 if (is_sent) return;
                 is_sent = true;
             }
+            logger.info(`req2 ${name}: is_cn = ${is_cn}, some_ip = ${some_ip}, counter = ${counter}`);
             if (is_cn || counter < 2) return;
             logger.log('info', `${name}: use ans2`);
             response.answer = ans2;
@@ -189,16 +213,13 @@ let on_req = function (drequest, response) {
             };
             if (is_sent) return;
             is_sent = true;
-            try {
-                response.send();
-            } catch (e) {
-                logger.log('error', 'error on req2 response.send()');
-            }
+            if (req1) req1.cancel();
+            response.send();
         });
-        req2.on('timeout', function () {
+        req2.once('timeout', function () {
             counter++;
             if (ans1) {
-                logger.log('warn', `${name}: req2 timeout, use ans1`);
+                logger.warn(`${name}: req2 timeout, use ans1`);
                 is_sent = true;
                 response.answer = ans1;
                 cache_zone[name] = {
@@ -209,23 +230,13 @@ let on_req = function (drequest, response) {
                 try {
                     response.send();
                 } catch (e) {
-                    logger.log('error', 'error on req2 response.send()');
+                    logger.error('error on req2 response.send()');
                 }
             }
         });
-        try {
-            req2.send();
-        } catch (e) {
-            counter++;
-            logger.log('error', 'error on req2.send()');
-        }
+        req2.send();
     }
-    try {
-        req1.send();
-    } catch (e) {
-        counter++;
-        logger.log('error', 'error on req1.send()');
-    }
+    req1.send();
 };
 server_udp.on('request', on_req);
 server_tcp.on('request', on_req);

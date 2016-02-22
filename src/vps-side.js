@@ -2,7 +2,7 @@
 // 
 
 let logger = require('./logger')('vps-side');
-let dns = require('native-dns');
+let dns = require('native-dns-rogerc');
 let util = require('util');
 let express = require('express');
 let config = require('../config.json');

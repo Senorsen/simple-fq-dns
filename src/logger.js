@@ -11,7 +11,7 @@ let createLogger = (label) => {
             label: label
         }
     });
-    let logger =  winston.loggers.get(label);
+    let logger = winston.loggers.get(label);
     logger.info('init');
     return logger;
 };
